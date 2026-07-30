@@ -1,4 +1,12 @@
-pandas 
+pandas
 pymysql
 sqlalchemy
-psycopg2
+psycopg2-binary
+python-dotenv
+pytest
+streamlit
+scikit-learn
+xgboost
+matplotlib
+seaborn
+plotly
