@@ -118,9 +118,13 @@ if page == "📊 Executive Overview":
         # Filters
         st.sidebar.markdown("### Dashboard Filters")
         
-        # Date filter
+        # Date filter — safely handle single date or range tuple
         min_date, max_date = df_sales['date'].min(), df_sales['date'].max()
-        start_date, end_date = st.sidebar.date_input("Date Range", [min_date, max_date], min_value=min_date, max_value=max_date)
+        date_range = st.sidebar.date_input("Date Range", [min_date, max_date], min_value=min_date, max_value=max_date)
+        if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
+            start_date, end_date = date_range
+        else:
+            start_date, end_date = min_date, max_date
         
         # Category filter
         categories = df_sales['category'].unique().tolist()
@@ -143,6 +147,9 @@ if page == "📊 Executive Overview":
         col1, col2, col3, col4 = st.columns(4)
         
         # Calculate values
+        if filtered_df.empty:
+            st.warning("No data matches the selected filters. Please adjust your selections.")
+            st.stop()
         total_sales = filtered_df['total'].sum()
         total_profit = (filtered_df['unit_price'] * filtered_df['quantity'] * filtered_df['profit_margin']).sum()
         avg_rating = filtered_df['rating'].mean()
@@ -182,7 +189,7 @@ if page == "📊 Executive Overview":
         
         with c1:
             st.markdown("### Monthly Sales Trends")
-            monthly_sales = filtered_df.resample('M', on='date')['total'].sum().reset_index()
+            monthly_sales = filtered_df.resample('ME', on='date')['total'].sum().reset_index()
             fig_monthly = px.line(
                 monthly_sales, x='date', y='total', 
                 labels={'total': 'Revenue ($)', 'date': 'Month'},

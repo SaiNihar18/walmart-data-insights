@@ -88,7 +88,7 @@ def forecast_weekly_sales(df: pd.DataFrame):
     # 1. Aggregate to weekly sales per product category
     # W-MON aggregates weekly ending on Mondays
     weekly_sales = (
-        df_copy.groupby(['category', pd.Grouper(key='date', freq='W-MON')])
+        df_copy.groupby(['category', pd.Grouper(key='date', freq='W')])
         .agg(weekly_sales=('total', 'sum'))
         .reset_index()
     )
