@@ -1,4 +1,7 @@
 -- Walmart Project Queries - MySQL
+-- Target engine: MySQL 8+. For the PostgreSQL pipeline (run_etl.py) use "PostgreSQL Queries.sql".
+-- Note: the `date` column is stored as a dd/mm/yy text string, so it is parsed
+-- with STR_TO_DATE(date, '%d/%m/%y') wherever calendar logic is needed.
 
 SELECT * FROM walmart;
 
@@ -49,7 +52,7 @@ SELECT branch, day_name, no_transactions
 FROM (
     SELECT 
         branch,
-        DAYNAME(STR_TO_DATE(date, '%d/%m/%Y')) AS day_name,
+        DAYNAME(STR_TO_DATE(date, '%d/%m/%y')) AS day_name,
         COUNT(*) AS no_transactions,
         RANK() OVER(PARTITION BY branch ORDER BY COUNT(*) DESC) AS rank
     FROM walmart
@@ -115,7 +118,7 @@ WITH revenue_2022 AS (
         branch,
         SUM(total) AS revenue
     FROM walmart
-    WHERE YEAR(STR_TO_DATE(date, '%d/%m/%Y')) = 2022
+    WHERE YEAR(STR_TO_DATE(date, '%d/%m/%y')) = 2022
     GROUP BY branch
 ),
 revenue_2023 AS (
@@ -123,7 +126,7 @@ revenue_2023 AS (
         branch,
         SUM(total) AS revenue
     FROM walmart
-    WHERE YEAR(STR_TO_DATE(date, '%d/%m/%Y')) = 2023
+    WHERE YEAR(STR_TO_DATE(date, '%d/%m/%y')) = 2023
     GROUP BY branch
 )
 SELECT 

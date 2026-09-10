@@ -1,12 +1,23 @@
-pandas
-pymysql
-sqlalchemy
-psycopg2-binary
-python-dotenv
-pytest
-streamlit
-scikit-learn
-xgboost
-matplotlib
-seaborn
-plotly
+# Core data stack
+pandas>=2.2,<3
+numpy>=1.26,<3
+
+# Database
+pymysql>=1.1
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
+python-dotenv>=1.0
+
+# Machine learning
+scikit-learn>=1.4
+xgboost>=2.0
+joblib>=1.3
+
+# Visualization / dashboard
+streamlit>=1.30
+plotly>=5.18
+matplotlib>=3.8
+seaborn>=0.13
+
+# Testing
+pytest>=8.0
