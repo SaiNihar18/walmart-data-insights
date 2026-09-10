@@ -1,276 +1,305 @@
-# 🛒 Walmart Sales Intelligence Platform
+# Walmart Sales Intelligence Platform
 
-**An end-to-end, production-grade Data Science & Engineering portfolio project** — combining a modular ETL pipeline, advanced SQL analytics, machine learning, and an interactive Streamlit web dashboard.
+An end-to-end analytics project built on ~10K Walmart sales transactions: a modular
+Python ETL pipeline, a dual-dialect SQL analytics layer, two machine-learning models,
+and a four-page Streamlit dashboard.
 
-> Built on **10,000 Walmart sales transactions** across **100 branches**, **6 product categories**, and **5 years (2019–2023)**.
-
-[![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)](https://python.org)
-[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-red?logo=streamlit)](https://streamlit.io)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue?logo=postgresql)](https://postgresql.org)
-[![Docker](https://img.shields.io/badge/Docker-Containerized-blue?logo=docker)](https://docker.com)
 [![CI](https://github.com/SaiNihar18/walmart-data-insights/actions/workflows/test.yml/badge.svg)](https://github.com/SaiNihar18/walmart-data-insights/actions)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org)
+[![Streamlit](https://img.shields.io/badge/dashboard-Streamlit-ff4b4b?logo=streamlit&logoColor=white)](https://streamlit.io)
+[![PostgreSQL](https://img.shields.io/badge/database-PostgreSQL%20%7C%20MySQL-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+
+**Live dashboard:** https://walmart-data-insights.streamlit.app
 
 ---
 
-## 🌐 Live Dashboard
+## Overview
 
-👉 **[walmart-data-insights.streamlit.app](https://walmart-data-insights.streamlit.app)**
-
----
-
-## 🗺️ Project Workflow
-
-```
-Raw Data (Kaggle CSV)
-        │
-        ▼
-┌─────────────────────┐
-│   ETL Pipeline      │  extract → transform → load
-│   (run_etl.py)      │  • Remove duplicates & nulls
-│   src/etl.py        │  • Parse currency strings
-│   src/db.py         │  • Calculate total revenue
-└──────────┬──────────┘  • Load to PostgreSQL (Docker)
-           │
-           ▼
-┌─────────────────────┐
-│  SQL Analytics      │  9 business questions solved
-│  MySQL Queries.sql  │  • Window Functions (RANK)
-│                     │  • CTEs, Date Arithmetic
-│                     │  • YoY Revenue Analysis
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  EDA Notebook       │  Rich visual analysis
-│  eda.ipynb          │  • 5-year sales trends
-│                     │  • Category profit margins
-│                     │  • Correlation heatmap
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  ML Modeling        │  Two production models
-│  (run_modeling.py)  │  • K-Means Branch Clustering
-│  src/modeling.py    │  • XGBoost Sales Forecasting
-└──────────┬──────────┘  → models/*.joblib
-           │
-           ▼
-┌─────────────────────┐
-│  Streamlit App      │  4-page interactive dashboard
-│  app.py             │  • Executive KPI Overview
-│                     │  • Sales Forecasting (2023)
-│                     │  • Branch Market Segments
-│                     │  • Price Elasticity Simulator
-└─────────────────────┘
-```
+| | |
+|---|---|
+| **Dataset** | 10,051 raw transactions, 9,969 after cleaning |
+| **Coverage** | 100 branches, 98 cities, 6 product categories, Jan 2019 – Dec 2023 |
+| **Pipeline** | `run_etl.py` (extract / transform / load) then `run_modeling.py` (segmentation + forecasting) |
+| **Storage** | CSV artifacts, plus PostgreSQL or MySQL via SQLAlchemy and Docker |
+| **Interface** | Streamlit dashboard (`app.py`) with four interactive pages |
+| **Quality** | pytest unit tests, GitHub Actions CI on every push |
 
 ---
 
-## 📁 Project Structure
+## Architecture
+
+```mermaid
+flowchart TD
+    RAW["Walmart.csv<br/>10,051 raw rows"]
+
+    subgraph ETL["ETL pipeline — run_etl.py"]
+        EX["extract"] --> TF["transform<br/>dedupe, drop nulls,<br/>parse currency, derive revenue"] --> LD["load"]
+    end
+
+    CLEAN[("walmart_cleaned.csv<br/>9,969 rows")]
+    DB[("PostgreSQL / MySQL<br/>walmart table")]
+
+    subgraph MODEL["Modeling — run_modeling.py"]
+        KM["K-Means<br/>branch segmentation"]
+        XG["XGBoost<br/>weekly sales forecast"]
+    end
+
+    SQLQ["SQL analytics<br/>9 queries, MySQL + PostgreSQL"]
+    EDA["EDA notebook<br/>eda.ipynb"]
+    APP["Streamlit dashboard — app.py<br/>Overview / Forecasting / Segments / Elasticity"]
+
+    RAW --> EX
+    TF --> CLEAN
+    LD --> DB
+    DB --> SQLQ
+    CLEAN --> EDA
+    CLEAN --> KM
+    CLEAN --> XG
+    CLEAN --> APP
+    KM --> APP
+    XG --> APP
+```
+
+The dashboard consumes the generated CSV artifacts directly, so it runs without a database:
+
+```mermaid
+flowchart LR
+    C[("walmart_cleaned.csv")] --> P1["Executive Overview"]
+    C --> P4["Price Elasticity Simulator"]
+    F[("walmart_forecast_eval.csv")] --> P2["Sales Forecasting"]
+    S[("walmart_clustered_branches.csv")] --> P3["Market Segments"]
+    P1 --> UI(["Streamlit UI"])
+    P2 --> UI
+    P3 --> UI
+    P4 --> UI
+```
+
+---
+
+## Repository layout
 
 ```
-Walmart_SQL_Python/
-│
-├── 📁 .github/workflows/
-│   └── test.yml                    # CI/CD: Auto-runs pytest on every GitHub push
-│
-├── 📁 src/                         # Core Python package
-│   ├── __init__.py
-│   ├── db.py                       # Secure DB engine (env-var based, URL-encoded passwords)
-│   ├── etl.py                      # Extract → Transform → Load functions with logging
-│   └── modeling.py                 # K-Means clustering + XGBoost sales forecasting
-│
-├── 📁 tests/
-│   └── test_etl.py                 # 3 pytest unit tests for data cleaning logic
-│
-├── 📁 models/                      # Serialized ML artifacts (auto-generated)
-│   ├── branch_kmeans.joblib        # Fitted K-Means model
-│   ├── branch_scaler.joblib        # Feature StandardScaler
-│   ├── sales_forecaster.joblib     # Fitted XGBoost model
-│   └── sales_features.joblib       # Feature column list
-│
-├── app.py                          # ✨ 4-page Streamlit dashboard
-├── run_etl.py                      # ETL pipeline entry point
-├── run_modeling.py                 # ML pipeline entry point
-├── eda.ipynb                       # Exploratory Data Analysis notebook
-├── MySQL Queries.sql               # 9 advanced SQL business queries
-├── docker-compose.yml              # PostgreSQL + pgAdmin Docker setup
-├── .env.example                    # Credentials template (never commit .env)
-├── .gitignore
+.
+├── src/
+│   ├── db.py                 SQLAlchemy engine factory (env-driven, PostgreSQL / MySQL)
+│   ├── etl.py                extract / transform / load functions with logging
+│   └── modeling.py           K-Means segmentation + XGBoost forecasting
+├── tests/
+│   └── test_etl.py           unit tests for the transform step
+├── models/                   serialized artifacts written by run_modeling.py
+├── app.py                    Streamlit dashboard (four pages)
+├── run_etl.py                ETL entry point
+├── run_modeling.py           modeling entry point
+├── eda.ipynb                 exploratory data analysis
+├── project.ipynb             original single-notebook walkthrough
+├── MySQL Queries.sql         nine business queries, MySQL 8+ syntax
+├── PostgreSQL Queries.sql    same queries, PostgreSQL 13+ syntax (matches run_etl.py)
+├── docker-compose.yml        PostgreSQL + pgAdmin
+├── .env.example              environment-variable template
 └── requirements.txt
 ```
 
 ---
 
-## 🔧 Tech Stack
+## Tech stack
 
-| Layer | Tools |
+| Area | Tools |
 |---|---|
-| **Language** | Python 3.10+, SQL |
-| **Data Processing** | Pandas, NumPy |
-| **Databases** | PostgreSQL, MySQL, SQLAlchemy |
-| **Infrastructure** | Docker, Docker Compose |
-| **Security** | python-dotenv (`.env` credentials) |
-| **EDA & Visualization** | Matplotlib, Seaborn, Plotly |
-| **Machine Learning** | Scikit-learn (K-Means), XGBoost |
-| **Dashboard** | Streamlit |
-| **Testing & CI/CD** | pytest, GitHub Actions |
+| Language | Python 3.10+, SQL |
+| Data processing | pandas, NumPy |
+| Database | SQLAlchemy 2, PostgreSQL, MySQL (`psycopg2`, `PyMySQL`) |
+| Machine learning | scikit-learn (K-Means, `StandardScaler`), XGBoost |
+| Visualization | Plotly, Matplotlib, Seaborn |
+| Dashboard | Streamlit |
+| Infrastructure | Docker Compose |
+| Configuration | python-dotenv |
+| Testing / CI | pytest, GitHub Actions |
 
 ---
 
-## ⚙️ Local Setup Guide
+## Data
+
+### Dataset
+
+| Property | Value |
+|---|---|
+| Source | Walmart 10K Sales Dataset (Kaggle, `@najir0123`) |
+| Raw rows | 10,051 |
+| After cleaning | 9,969 — removed 51 duplicates and 31 rows with null price/quantity |
+| Branches / cities | 100 / 98 |
+| Product categories | 6 |
+| Date span | January 2019 – December 2023 |
+
+### `walmart` table schema
+
+| Column | Type | Notes |
+|---|---|---|
+| `invoice_id` | integer | unique transaction id |
+| `Branch` | text | `WALM001`–`WALM100` |
+| `City` | text | 98 distinct US cities |
+| `category` | text | six product categories |
+| `unit_price` | numeric | currency symbol stripped during ETL |
+| `quantity` | numeric | units per transaction |
+| `date` | text | `dd/mm/yy`; parsed with `STR_TO_DATE` / `TO_DATE` |
+| `time` | text | `HH:MM:SS` |
+| `payment_method` | text | Cash, Credit card, Ewallet |
+| `rating` | numeric | 3.0 – 10.0 |
+| `profit_margin` | numeric | 0.18 – 0.57 |
+| `total` | numeric | derived: `unit_price × quantity` |
+
+> **Coverage note.** *Food and beverages*, *Health and beauty*, and *Sports and travel*
+> only contain transactions through Q1 2019. Weekly forecasting therefore covers the three
+> categories with continuous 2019–2023 history: *Electronic accessories*, *Fashion
+> accessories*, and *Home and lifestyle*.
+
+---
+
+## Getting started
 
 ### Prerequisites
-- Python 3.10+, Git
-- Docker & Docker Compose *(optional — only needed for live DB loading)*
 
-### 1. Clone & Install
+- Python 3.10 or newer
+- Docker and Docker Compose *(optional — only needed to load a live database)*
+
+### Install
+
 ```bash
 git clone https://github.com/SaiNihar18/walmart-data-insights.git
 cd walmart-data-insights
+python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment
+### Configure a database *(optional)*
+
 ```bash
-cp .env.example .env
-# Edit .env with your database credentials
+cp .env.example .env        # edit credentials
+docker compose up -d        # PostgreSQL on :5432, pgAdmin on :8080
 ```
 
-### 3. Spin Up the Database (Docker)
-```bash
-docker compose up -d
-# PostgreSQL → localhost:5432
-# pgAdmin UI → http://localhost:8080
-```
+### Run
 
-### 4. Run ETL Pipeline
-```bash
-python run_etl.py
-```
-*Extracts 10,051 records → cleans → saves `walmart_cleaned.csv` → loads to database*
-
-### 5. Train ML Models
-```bash
-python run_modeling.py
-```
-*Trains K-Means + XGBoost → saves model artifacts to `models/`*
-
-### 6. Launch Dashboard
-```bash
-streamlit run app.py
-# Opens at http://localhost:8501
-```
-
-### 7. Run Unit Tests
-```bash
-python -m pytest tests/
-```
-
----
-
-## 📊 Dashboard Pages
-
-| Page | Description |
-|---|---|
-| **📊 Executive Overview** | KPI cards (Revenue, Profit, Rating, Transactions) + Monthly trend, Payment share donut, Category bar chart — all with dynamic filters |
-| **📈 Sales Forecasting** | Select any category → view XGBoost predictions vs actual 2023 weekly sales with RMSE & MAPE metrics |
-| **🏷️ Market Segments** | K-Means cluster scatter plot (Revenue vs Rating), cluster profile descriptions for all 100 branches |
-| **🎯 Price Elasticity Simulator** | Adjust price ±20% → instantly see projected volume and revenue change using category elasticity coefficients |
-
----
-
-## 🗄️ SQL Business Queries (9 Solved)
-
-| # | Business Question | SQL Feature |
+| Step | Command | Produces |
 |---|---|---|
-| 1 | Payment method distribution & transaction volumes | GROUP BY, COUNT, SUM |
-| 2 | Highest-rated category per branch | Window Function (RANK, PARTITION BY) |
-| 3 | Busiest transaction day per branch | DAYNAME, Window Function |
-| 4 | Total quantity sold by payment method | GROUP BY, SUM |
-| 5 | Rating statistics per city & category | MIN, MAX, AVG |
-| 6 | Total profit per product category | Derived Column, ORDER BY |
-| 7 | Most common payment method per branch | CTE + RANK |
-| 8 | Sales by shift (Morning/Afternoon/Evening) | CASE WHEN, HOUR |
-| 9 | Top 5 branches with highest YoY revenue decline | CTE, JOIN, Arithmetic |
+| ETL | `python run_etl.py` | `walmart_cleaned.csv`; loads the `walmart` table if a database is configured |
+| Modeling | `python run_modeling.py` | `models/*.joblib`, `walmart_clustered_branches.csv`, `walmart_forecast_eval.csv` |
+| Dashboard | `streamlit run app.py` | http://localhost:8501 |
+| Tests | `python -m pytest tests/` | — |
+
+`run_etl.py` still writes the cleaned CSV if the database load fails, so the modeling
+and dashboard steps work with no database at all.
 
 ---
 
-## 🤖 Machine Learning Results
+## SQL analytics
 
-### K-Means Branch Clustering
-Groups 100 branches into **4 performance cohorts** using:
-- Total Revenue, Avg Transaction Value, Avg Profit Margin, Avg Rating
-- Normalized product category sales share (pivot table)
-- Standardized with `StandardScaler` before clustering
+Nine business questions, supplied for both engines: `MySQL Queries.sql` (MySQL 8+) and
+`PostgreSQL Queries.sql` (PostgreSQL 13+, matching the schema `run_etl.py` creates). The
+`date` column is stored as `dd/mm/yy` text and parsed explicitly wherever calendar logic
+is required.
 
-| Cluster | Branches | Profile |
+| # | Question | Techniques |
 |---|---|---|
-| 0 | 31 | Balanced mid-tier |
-| 1 | 25 | High-satisfaction outlets |
-| 2 | 17 | Premium low-volume |
-| 3 | 27 | High-volume powerhouses |
+| 1 | Transactions and units sold per payment method | `GROUP BY`, aggregates |
+| 2 | Highest-rated category in each branch | `RANK() OVER (PARTITION BY …)` |
+| 3 | Busiest weekday per branch | date parsing, window function |
+| 4 | Units sold per payment method | `GROUP BY` |
+| 5 | Rating min / max / average per city and category | aggregates |
+| 6 | Total profit per category | derived column, `ORDER BY` |
+| 7 | Most common payment method per branch | CTE + `RANK()` |
+| 8 | Transactions by day-part (morning / afternoon / evening) | `CASE`, hour extraction |
+| 9 | Five branches with the largest year-over-year revenue decline (2022 → 2023) | CTEs, join, arithmetic |
 
-### XGBoost Weekly Sales Forecasting
-| Detail | Value |
+---
+
+## Machine learning
+
+### Branch segmentation — K-Means
+
+Per-branch features: total revenue, average transaction value, average profit margin,
+average rating, and the normalized revenue share of each of the six categories. Features
+are standardized with `StandardScaler`; `k = 4`.
+
+| Cohort | Branches | Avg branch revenue | Avg rating | Avg margin | Character |
+|---|---|---|---|---|---|
+| A | 25 | ≈ $21,000 | 5.2 | 0.38 | High volume, thinner margins |
+| B | 31 | ≈ $10,300 | 6.4 | 0.37 | Mid volume, balanced |
+| C | 27 | ≈ $8,300 | 6.4 | 0.44 | Low volume, high margin |
+| D | 17 | ≈ $8,200 | 6.4 | 0.42 | Smallest volume, high margin |
+
+> Cluster indices are not stable between runs; the dashboard relabels cohorts by rank at
+> display time.
+
+### Weekly sales forecasting — XGBoost
+
+| Aspect | Detail |
 |---|---|
-| Features | 4 lag values, rolling mean/std, month, week number, category dummies |
-| Train Period | Jan 2019 – Dec 2022 (403 weekly observations) |
-| Test Period | Jan 2023 – Dec 2023 (121 weekly observations) |
-| RMSE | $748.20 |
-| MAPE | 73.94% (baseline — weekly category sales range $1K–$4K) |
+| Target | Weekly revenue per category |
+| Features | 4 sales lags, 4-week rolling mean / std, month, ISO week, category one-hot |
+| Split | Train Jan 2019 – Dec 2022, validate Jan – Dec 2023 |
+| Validation RMSE | ≈ $748 |
+| Validation MAPE | ≈ 74% |
+| Scope | 3 categories with continuous history (see coverage note) |
+
+MAPE is high because weekly per-category revenue is small and volatile (roughly
+$1K–$4K per week). The model is a documented baseline rather than a tuned production
+forecaster, and exact metrics shift with the installed XGBoost / scikit-learn versions.
 
 ---
 
-## ✅ CI/CD Pipeline
+## Dashboard
 
-Every push to `main` automatically:
-1. Spins up a clean **Ubuntu** environment
-2. Installs all Python dependencies
-3. Runs `python -m pytest tests/` (3 unit tests)
-4. Reports ✅ pass / ❌ fail on every commit
+| Page | Contents | Data source |
+|---|---|---|
+| **Executive Overview** | Revenue, profit, rating and transaction KPIs; monthly trend; payment mix; revenue by category — with date, category and payment filters | `walmart_cleaned.csv` |
+| **Sales Forecasting** | Actual vs. predicted weekly sales for a selected category, with RMSE and MAPE | `walmart_forecast_eval.csv` |
+| **Market Segments** | Cohort profiles and a revenue-vs-rating scatter of all 100 branches | `walmart_clustered_branches.csv` |
+| **Price Elasticity Simulator** | What-if price change (±20%) projected onto volume and revenue using per-category elasticity coefficients | `walmart_cleaned.csv` |
 
----
-
-## 🌐 Deploying Your Own Copy
-
-### Option A — Streamlit Community Cloud (Free, Recommended)
-1. Fork this repo
-2. Go to [share.streamlit.io](https://share.streamlit.io) → **New App**
-3. Select your fork, branch `main`, file `app.py`
-4. Click **Deploy** — live in ~2 minutes
-
-### Option B — Render
-1. Go to [render.com](https://render.com) → New Web Service
-2. Build command: `pip install -r requirements.txt`
-3. Start command: `streamlit run app.py --server.port $PORT --server.address 0.0.0.0`
+> The elasticity page uses published retail benchmark coefficients, not values estimated
+> from this dataset.
 
 ---
 
-## 📈 Key Business Insights
+## Testing and CI
 
-- **Food & Beverages** generates the highest cumulative revenue across all branches
-- **Saturday** is the single busiest transaction day across all locations
-- **E-wallet** is the most preferred payment method overall
-- **Electronic accessories** have the highest price elasticity — small price changes cause large demand swings
-- Branches in **Cluster 2** (17 branches) show premium high-rating characteristics despite lower volumes
+`tests/test_etl.py` exercises the transform step: duplicate removal, null handling,
+currency parsing, and the derived `total` column. GitHub Actions runs the suite on every
+push and pull request to `main` (Python 3.10, pandas + pytest only).
 
 ---
 
-## 📦 Data Source
+## Deployment
 
-| Property | Detail |
-|---|---|
-| Dataset | [Walmart 10K Sales Dataset](https://www.kaggle.com/najir0123/walmart-10k-sales-datasets) |
-| Source | Kaggle — by @najir0123 |
-| Raw Records | 10,051 |
-| Cleaned Records | 9,969 |
-| Date Span | January 2019 – December 2023 |
-| Branches | 100 across 98 US cities |
+**Streamlit Community Cloud** — point a new app at `app.py` on the `main` branch. The
+committed CSV artifacts are sufficient to serve the dashboard.
+
+**Render or a container platform** — install with `pip install -r requirements.txt`, then:
+
+```bash
+streamlit run app.py --server.port $PORT --server.address 0.0.0.0
+```
 
 ---
 
-## 🙏 Acknowledgments
+## Selected findings
 
-- Dataset by [@najir0123](https://www.kaggle.com/najir0123) on Kaggle
-- Inspired by Walmart's retail analytics and supply chain case studies
+- **Revenue concentration.** *Fashion accessories* and *Home and lifestyle* account for
+  about 81% of revenue and 91% of transactions; the other four categories are long-tail.
+- **Payment mix.** *Credit card* leads on both transaction count (43%) and revenue, with
+  *Ewallet* a close second.
+- **Rating vs. volume.** The three low-volume categories average a 7.0 rating, against
+  5.8 for the two high-volume ones.
+- **Weekday demand is flat.** Daily transaction counts span only 1,322–1,468 across the
+  week (an 11% spread) — no material day-of-week effect.
+- **Branch structure.** One cohort of roughly 25 branches drives about double the average
+  branch revenue; the remaining branches separate mainly on profit margin and rating
+  rather than volume.
+
+---
+
+## Data source and credits
+
+- Dataset: [Walmart 10K Sales Dataset](https://www.kaggle.com/najir0123/walmart-10k-sales-datasets)
+  by [@najir0123](https://www.kaggle.com/najir0123) on Kaggle.
+- Built as a data engineering and analytics portfolio project.

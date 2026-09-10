@@ -81,9 +81,10 @@ def forecast_weekly_sales(df: pd.DataFrame):
     """
     logger.info("Starting Weekly Sales Forecasting pipeline.")
     
-    # Ensure dates are datetime
+    # Ensure dates are datetime. Source values are dd/mm/yy strings; parse
+    # explicitly so ambiguous days/months are never guessed.
     df_copy = df.copy()
-    df_copy['date'] = pd.to_datetime(df_copy['date'], dayfirst=True)
+    df_copy['date'] = pd.to_datetime(df_copy['date'], format='%d/%m/%y')
     
     # 1. Aggregate to weekly sales per product category
     # W-MON aggregates weekly ending on Mondays

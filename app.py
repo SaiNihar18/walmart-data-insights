@@ -4,7 +4,6 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import os
-import joblib
 
 # Page configuration
 st.set_page_config(
@@ -77,7 +76,8 @@ st.markdown("""
 def load_cleaned_data():
     if os.path.exists('walmart_cleaned.csv'):
         df = pd.read_csv('walmart_cleaned.csv')
-        df['date'] = pd.to_datetime(df['date'], dayfirst=True)
+        # Source dates are dd/mm/yy strings — parse explicitly to avoid ambiguity.
+        df['date'] = pd.to_datetime(df['date'], format='%d/%m/%y')
         return df
     return None
 
@@ -242,25 +242,41 @@ elif page == "📈 Sales Forecasting":
     if df_forecast is None:
         st.error("Forecast evaluation data 'walmart_forecast_eval.csv' not found. Please run your modeling pipeline first.")
     else:
-        # Get category list by looking for cat_ dummy columns
+        # Build the category list from the cat_ dummy columns, keeping only
+        # those that actually have rows in the 2023 validation window. In this
+        # dataset three categories stop trading after Q1 2019, so they have no
+        # forecast to show.
         dummy_cols = [c for c in df_forecast.columns if c.startswith('cat_')]
-        categories = [c.replace('cat_', '') for c in dummy_cols]
-        
+        categories = sorted(c.replace('cat_', '') for c in dummy_cols if df_forecast[c].sum() > 0)
+
+        if not categories:
+            st.warning("No product category has validation data to forecast.")
+            st.stop()
+
         selected_cat = st.selectbox("Select Product Category to Forecast", categories)
-        
+
         # Map selected category back to dummy column
         cat_dummy = f"cat_{selected_cat}"
-        
+
         # Filter evaluation data
         cat_mask = df_forecast[cat_dummy] == 1
         df_cat_forecast = df_forecast[cat_mask].sort_values('date')
-        
+
+        if df_cat_forecast.empty:
+            st.warning(f"No validation rows found for '{selected_cat}'.")
+            st.stop()
+
         # Metrics
         y_true = df_cat_forecast['weekly_sales']
         y_pred = df_cat_forecast['predicted_sales']
-        
+
         rmse = np.sqrt(np.mean((y_true - y_pred)**2))
-        mape = np.mean(np.abs((y_true - y_pred) / y_true))
+        # Guard against divide-by-zero weeks when computing MAPE.
+        nonzero = y_true != 0
+        if nonzero.any():
+            mape = np.mean(np.abs((y_true[nonzero] - y_pred[nonzero]) / y_true[nonzero]))
+        else:
+            mape = np.nan
         
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -324,21 +340,29 @@ elif page == "🏷️ Market Segments":
             avg_margin=('avg_profit_margin', 'mean')
         ).reset_index()
         
-        # Custom descriptions based on cluster averages
-        descriptions = []
-        for idx, row in cluster_summary.iterrows():
-            rev = row['avg_revenue']
-            rating = row['avg_rating']
-            if rev > 13000:
-                descriptions.append("🏆 High-Volume Powerhouses (Dominant sales volume & solid ratings)")
-            elif rating > 7.1:
-                descriptions.append("⭐ High-Satisfaction Outlets (Excellent customer feedback & ratings)")
-            elif rev < 10000:
-                descriptions.append("📉 Small-Market Outlets (Low overall revenue, serving smaller communities)")
-            else:
-                descriptions.append("⚖️ Balanced Mid-Tier (Average revenue, steady margins)")
-                
-        cluster_summary['Profile Description'] = descriptions
+        # Assign each cluster a distinct profile by ranking the cohorts against
+        # each other, so two clusters can never receive the same label.
+        profiles = {}
+        pool = cluster_summary.set_index('cluster')
+
+        top_revenue = pool['avg_revenue'].idxmax()
+        profiles[top_revenue] = "🏆 High-Volume Powerhouses (Dominant sales volume & solid ratings)"
+        pool = pool.drop(index=top_revenue)
+
+        if not pool.empty:
+            top_rating = pool['avg_rating'].idxmax()
+            profiles[top_rating] = "⭐ High-Satisfaction Outlets (Excellent customer feedback & ratings)"
+            pool = pool.drop(index=top_rating)
+
+        if not pool.empty:
+            low_revenue = pool['avg_revenue'].idxmin()
+            profiles[low_revenue] = "📉 Small-Market Outlets (Lower overall revenue, serving smaller communities)"
+            pool = pool.drop(index=low_revenue)
+
+        for cluster_id in pool.index:
+            profiles[cluster_id] = "⚖️ Balanced Mid-Tier (Average revenue, steady margins)"
+
+        cluster_summary['Profile Description'] = cluster_summary['cluster'].map(profiles)
         
         # Print profiles
         for idx, row in cluster_summary.iterrows():
@@ -405,11 +429,17 @@ elif page == "🎯 Price Elasticity Simulator":
         qty_diff = proj_qty - total_qty
         
         # Display coefficients
+        is_elastic = abs(coef) > 1
+        regime = "Elastic" if is_elastic else "Inelastic"
+        comparison = ">" if is_elastic else "<"
+        sensitivity = "highly sensitive" if is_elastic else "relatively insensitive"
         st.markdown(f"#### Category Benchmark: **{category}**")
-        st.info(f"Price Elasticity Coefficient ($\epsilon$): **{coef}**  \n"
-                f"A **1% price increase** yields a **{abs(coef):.2f}% demand reduction**. "
-                f"Since $|\epsilon| {' > 1$ (Elastic)' if abs(coef) > 1 else ' < 1$ (Inelastic)'}, "
-                f"demand is {'highly sensitive' if abs(coef) > 1 else 'relatively insensitive'} to price changes.")
+        st.info(
+            rf"Price Elasticity Coefficient ($\epsilon$): **{coef}**  " + "\n"
+            rf"A **1% price increase** yields a **{abs(coef):.2f}% demand reduction**. "
+            rf"Since $|\epsilon| {comparison} 1$ ({regime}), "
+            rf"demand is {sensitivity} to price changes."
+        )
         
         # Display Cards
         col1, col2, col3 = st.columns(3)
